@@ -54,7 +54,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/purchases/**").authenticated()
 
                 // Tout le reste → authentifié
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()
             );
 
         // Le filtre JWT avant UsernamePasswordAuthenticationFilter
@@ -69,7 +69,6 @@ public class SecurityConfig {
         CorsConfiguration c = new CorsConfiguration();
         c.setAllowedOrigins(List.of(
             "https://yramus.com",      // ← mets ton domaine front ici
-            "https://ton-sous-domaine.host"    // ← et/ou ici, ou supprime
         ));
         c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
