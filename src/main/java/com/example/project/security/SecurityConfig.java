@@ -34,50 +34,50 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> {}) // Active la configuration CORS ci-dessous
+            .cors(cors -> {}) // active CORS via le bean corsConfigurationSource()
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Préflight CORS
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Routes publiques
-                .requestMatchers("/", "/api/ping", "/actuator/health", "/actuator/info",
-                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // Endpoints publics généraux
+                .requestMatchers(
+                    "/", "/api/ping",
+                    "/actuator/health", "/actuator/info",
+                    "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
+                ).permitAll()
 
-                // Ebooks : lecture publique, écriture admin
+                // Ebooks
                 .requestMatchers(HttpMethod.GET, "/api/ebooks/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/ebooks/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/ebooks/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/ebooks/**").hasRole("ADMIN")
 
-                // Achats : nécessite connexion
+                // Achats
                 .requestMatchers(HttpMethod.POST, "/api/purchases/**").authenticated()
 
-                // Tout le reste nécessite un token JWT
-                .anyRequest().authenticated()
+                // Par défaut : pour l’instant tu veux tout ouvert pour vérifier le déploiement
+                .anyRequest().permitAll()
             );
 
-        // Filtre JWT avant le filtre d'authentification standard
+        // Ajout du filtre JWT AVANT l’auth standard Spring
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * Configuration CORS pour autoriser ton front-end Angular à accéder au backend Render.
-     * Ajoute ici tous les domaines de ton front (prod, dev, test).
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
         c.setAllowedOrigins(List.of(
-            "https://yramus.com",               // ton domaine principal (Hostinger)
-            "https://tonfront.onrender.com",    // ton front s’il est sur Render
-            "http://localhost:4200"             // pour les tests Angular locaux
+            "https://yramus.com" // domaine front Hostinger
         ));
-        c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
-        c.setAllowCredentials(true); // true si tu utilises JWT dans le header Authorization
+
+        // si tu n'utilises PAS de cookies/session (juste JWT en header Authorization),
+        // tu peux mettre false ici pour simplifier :
+        c.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", c);
