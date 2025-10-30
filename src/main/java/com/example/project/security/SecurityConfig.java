@@ -34,46 +34,50 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> {}) // active CORS (voir bean corsConfigurationSource() plus bas)
+            .cors(cors -> {}) // Active la configuration CORS ci-dessous
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Laisse passer les préflights CORS
+                // Préflight CORS
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Endpoints publics (pour la santé et un ping)
+                // Routes publiques
                 .requestMatchers("/", "/api/ping", "/actuator/health", "/actuator/info",
                                  "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                // Ebooks : lecture publique (GET), écriture réservée ADMIN
+                // Ebooks : lecture publique, écriture admin
                 .requestMatchers(HttpMethod.GET, "/api/ebooks/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/ebooks/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/ebooks/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/ebooks/**").hasRole("ADMIN")
 
-                // Achats : nécessitent une authentification
+                // Achats : nécessite connexion
                 .requestMatchers(HttpMethod.POST, "/api/purchases/**").authenticated()
 
-                // Tout le reste → authentifié
-                .anyRequest().permitAll()
+                // Tout le reste nécessite un token JWT
+                .anyRequest().authenticated()
             );
 
-        // Le filtre JWT avant UsernamePasswordAuthenticationFilter
+        // Filtre JWT avant le filtre d'authentification standard
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ⚠️ Remplace les domaines ci-dessous par ton (ou tes) vrai(s) domaine(s) Hostinger
+    /**
+     * Configuration CORS pour autoriser ton front-end Angular à accéder au backend Render.
+     * Ajoute ici tous les domaines de ton front (prod, dev, test).
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
         c.setAllowedOrigins(List.of(
-            "https://yramus.com",      // ← mets ton domaine front ici
+            "https://yramus.com",               // ton domaine principal (Hostinger)
+            "https://tonfront.onrender.com",    // ton front s’il est sur Render
+            "http://localhost:4200"             // pour les tests Angular locaux
         ));
-        c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
-        // Mets true seulement si tu utilises des cookies (sessions). En JWT header Bearer -> false possible.
-        c.setAllowCredentials(true);
+        c.setAllowCredentials(true); // true si tu utilises JWT dans le header Authorization
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", c);
