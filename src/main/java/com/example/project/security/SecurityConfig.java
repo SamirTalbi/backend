@@ -37,30 +37,37 @@ public class SecurityConfig {
             .cors(cors -> {}) // active CORS via le bean corsConfigurationSource()
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Préflight CORS
+                // 🔹 Préflight CORS (OPTIONS)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Endpoints publics généraux
+                // 🔹 Endpoints publics généraux
                 .requestMatchers(
                     "/", "/api/ping",
                     "/actuator/health", "/actuator/info",
                     "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
                 ).permitAll()
 
-                // Ebooks
+                // 🔹 Authentification (inscription & connexion)
+                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+
+                // 🔹 Lecture publique des ebooks
                 .requestMatchers(HttpMethod.GET, "/api/ebooks/**").permitAll()
+
+                // 🔹 Gestion des ebooks (ADMIN)
                 .requestMatchers(HttpMethod.POST, "/api/ebooks/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/ebooks/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/ebooks/**").hasRole("ADMIN")
 
-                // Achats
+                // 🔹 Achats (nécessitent une authentification JWT)
                 .requestMatchers(HttpMethod.POST, "/api/purchases/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/purchases/**").authenticated()
 
-                // Par défaut : pour l’instant tu veux tout ouvert pour vérifier le déploiement
+                // 🔹 Tout le reste temporairement ouvert (tu pourras le restreindre ensuite)
                 .anyRequest().permitAll()
             );
 
-        // Ajout du filtre JWT AVANT l’auth standard Spring
+        // 🔹 Ajout du filtre JWT avant UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -70,14 +77,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
         c.setAllowedOrigins(List.of(
-            "https://yramus.com" // domaine front Hostinger
+            "https://yramus.com",       // domaine principal du front Hostinger
+            "https://www.yramus.com"    // (optionnel, pour le sous-domaine www)
         ));
-        c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
-
-        // si tu n'utilises PAS de cookies/session (juste JWT en header Authorization),
-        // tu peux mettre false ici pour simplifier :
-        c.setAllowCredentials(true);
+        c.setAllowCredentials(true); // autorise l'envoi du header Authorization (Bearer ...)
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", c);
