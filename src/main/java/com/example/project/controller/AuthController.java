@@ -69,7 +69,7 @@ public class AuthController {
             if (tokenOpt.isPresent()) {
                 String token = tokenOpt.get().getToken();
                 // TODO: mets ça dans application.properties (base URL front)
-                String url = "http://localhost:4200/verify?token=" + token;
+                String url = "https://yramus.com/verify?token=" + token;
 
                 emailService.sendEmail(
                         saved.getEmail(),
